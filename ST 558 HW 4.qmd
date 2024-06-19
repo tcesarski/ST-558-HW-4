@@ -1,0 +1,251 @@
+---
+title: "ST 558 Homework 4"
+format: html
+author: "Taylor Cesarski"
+---
+
+# Task 1
+**+ Question 1: What is the purpose of the lapply() function? What is the equivalent purrr function?**
+
+The `lapply()` function applies a function to each element of a list. The equivalent using `purrr` function would be `map()`.
+
+**+ Question 2: Suppose we have a list called my_list. Each element of the list is a numeric data frame. We want to use lapply() to run the code cor(numeric_matrix, method = "kendall") on each element of the list. Write code to do this below.**
+
+`lapply(X = my_list, FUN = cor, method = "kendall")`
+
+This code takes in the my_list, applies the cor function and gives additional arguments (in this case the method) afterwards. 
+
+**+ Question 3: What are two advantages of using purrr functions instead of the base R apply family?**
+
+Two advantages of using purrr is more consistency and some additional helper functions.
+
+**+ Question 4: What is a side effect function?**
+
+A side-effect function is a function that doesn't generally try to change the data, but rather produces something. Examples of side effect functions include `print()`, `write_csv()`, and `plot()`. Side effect functions also don't naturally return the modified argument so you would need to use `invisible()` to do that.
+
+**+ Question 5: Why can you name a variable sd in a function and not cause any issues with the sd function?**
+
+When you create a new function, you are essentially creating a new temporary function environment. This means that R will first look within the function environment/current environment before searching up the path. It will only continue searching up the path if it doesn't already find the sd within the function, meaning there will be no conflicts.
+
+# Task 2
+**1. Write a basic function called getRMSE() that takes in a vector of responses and a vector of predictions and outputs the RMSE.**
+
+```{r}
+getRMSE <- function(vector_resp, vector_pred,...){
+  #Calculate the differences (response-prediction)
+  diff <- vector_resp - vector_pred
+  
+  #Square the difference
+  diff_squared <- (diff)^2
+  
+  #Then add them all up (sum) and divide by the total number of observations (n). This is equivalent to finding the mean.
+  mean_diff <- mean(diff_squared,...)
+  
+  #Take the square root.
+  sqrt_mean_diff <- sqrt(mean_diff)
+  
+  return(sqrt_mean_diff)
+}
+```
+
+**2. Run the following code to create some response values and predictions.**
+
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x + rnorm(n)
+pred <- predict(lm(resp ~ x), data.frame(x))
+
+#Test your RMSE function using this data. 
+getRMSE(resp, pred)
+
+#Replace the first two values with NA_real.
+resp[1:2] <- NA_real_
+#Print out new resp vector to show that first two values are now missing.
+resp
+
+#Test function with specifying missing values.
+getRMSE(resp, pred, na.rm = TRUE)
+
+#Test function without specifying missing values.
+getRMSE(resp, pred)
+```
+
+**3. Write a function called getMAE() that follows the specifications of the getRMSE() function.**
+
+```{r}
+getMAE <- function(vector_resp, vector_pred,...){
+  #Calculate the differences (response-prediction)
+  diff <- vector_resp - vector_pred
+  
+  #Find the absolute value of the difference.
+  abs_diff <- abs(diff)
+  
+  #Then add them all up (sum) and divide by the total number of observations (n). This is equivalent to finding the mean.
+  mean_abs_diff <- mean(abs_diff,...)
+  
+  return(mean_abs_diff)
+}
+```
+4. Run the following code to create some response values and predictions.
+
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x +rnorm(n)
+pred <- predict(lm(resp~x), data.frame(x))
+
+#Test MAE function using this data.
+getMAE(resp, pred)
+
+#Replace the first two values with NA_real.
+resp[1:2] <- NA_real_
+#Print out new resp vector to show that first two values are now missing.
+resp
+
+#Test function with specifying missing values.
+getMAE(resp, pred, na.rm = TRUE)
+
+#Test function without specifying missing values.
+getRMSE(resp, pred)
+```
+
+5. Create a wrapper function that can be used to get either or both metrics returned with a single function call. 
+
+```{r}
+library(tidyverse)
+wrap_all <- function(response, prediction, values = "both", ...){
+  if(!is.numeric(response) | !is.numeric(prediction) | !is.vector(response) | !is.vector(prediction)){
+    print("Response or prediction vectors are not numeric.")
+  } else if (values == "both"){
+    return(list(RMSE = getRMSE(response, prediction,...), MAE = getMAE(response, prediction,...)))
+  } else if (values == "RMSE"){
+    return(list(RMSE = getRMSE(response, prediction,...)))
+  } else if (values == "MAE"){
+    return(list(MAE = getMAE(response, prediction,...)))
+  } else {
+    print("Invalid input for values. Need both, MAE, or RMSE.")
+  }
+}
+
+```
+6. Run the following code to create some response values and predictions.
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x +rnorm(n)
+pred <- predict(lm(resp~x), data.frame(x))
+
+#Test the function with just getting the RMSE.
+wrap_all(resp, pred, "RMSE")
+
+#Test the function with just getting the MAE.
+wrap_all(resp, pred, "MAE")
+
+#Test the function with getting both. Specify both with defaults and with explicitly calling values = both.
+
+wrap_all(resp, pred, values = "both")
+wrap_all(resp, pred)
+
+#Replace the first two values with NA_real.
+resp[1:2] <- NA_real_
+#Print out new resp vector to show that first two values are now missing.
+resp
+
+#Call just RMSE with specifying missing values.
+wrap_all(resp, pred, values = "RMSE", na.rm = TRUE)
+
+#Call just MAE with specifying missing values.
+wrap_all(resp, pred, values = "MAE", na.rm = TRUE)
+
+#Call both with specifying missing values.
+wrap_all(resp, pred, values = "both", na.rm = TRUE)
+
+#Call just RMSE without specifying missing values.
+wrap_all(resp, pred, values = "RMSE")
+
+#Call just MAE without specifying missing values.
+wrap_all(resp, pred, values = "MAE")
+
+#Call both without specifying missing values.
+wrap_all(resp, pred, values = "both")
+
+#Pass it incorrect data.
+#Pass built-in data frame of iris.
+wrap_all(iris, pred)
+#Pass character vector.
+char_vec <- c("a", "b", "c", "d")
+wrap_all(char_vec, pred)
+
+#Finally, check that error message prints if values is something other than "both", "RMSE", or "MAE".
+
+wrap_all(resp, pred, values = "RMSE and MAE", na.rm = TRUE)
+
+
+```
+
+# Task 3
+API key: 53ad0f05e7ae4a3298cdbdb8d0810afb 
+
+1. Use GET() from the httr package to return information about a topic that you are interested in that has been in the news lately (store the result as an R object). I chose to look at education data.
+
+```{r}
+library(httr)
+library(jsonlite)
+url_api <- "https://newsapi.org/v2/everything?q=education&from=2024-06-01&sortBy=popularity&apiKey=53ad0f05e7ae4a3298cdbdb8d0810afb"
+
+return_ed_data <- GET(url_api)
+return_ed_data
+```
+2. Parse what is returned and find your way to the data frame that has the actual article information in it (check content). Note the first column should be a list column.
+```{r}
+#Parse through data using fromJSON function from jsonlite package.
+parsed_ed_data <- fromJSON(rawToChar(return_ed_data$content))
+#Convert the article information to a tibble.
+ed_info <- as_tibble(parsed_ed_data$articles)
+#Print out the tibble with article information.
+ed_info
+```
+3. Now write a quick function that allows the user to easily query this API. The inputs to the function should be the title/subject to search for (string), a time period to search from (string - you’ll search
+from that time until the present), and an API key.
+```{r}
+#Write function called api_query that takes inputs subject, time, and key.
+api_query <- function(subject, time, key){
+#Store the base url before the inputs as start_url.
+  start_url <- "https://newsapi.org/v2/everything"
+#Based on documentation provided on API, paste together formatting of initial url, and inputs for what the final url shoudl look like (seen as url_api in step 1). Use paste0 to not add spaces.
+  url <- paste0(start_url, 
+                "?q=",
+                subject,
+                "&from=",
+                time,
+                "&sortBy=popularity",
+                "&apiKey=",
+                key)
+#Use the GET function to contact API.
+    return_ed_data <- GET(url)
+#Parse through data using fromJSON function from jsonlite package.
+  parsed_ed_data <- fromJSON(rawToChar(return_ed_data$content))
+#Convert the article information to a tibble.
+ed_info <- as_tibble(parsed_ed_data$articles)
+#Return ed_info tibble.
+return(ed_info)
+}
+
+#Run the function twice.
+#Query to API for education data from June 18th 2024 to present.
+ed_query <- api_query("education", "2024-06-18", "53ad0f05e7ae4a3298cdbdb8d0810afb")
+ed_query
+
+#Querty to API for election data from June 1st 2024 to present.
+election_query <- api_query("election", "2024-06-01", "53ad0f05e7ae4a3298cdbdb8d0810afb")
+election_query
+```
+
+
+
+
+
